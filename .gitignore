@@ -1,0 +1,16 @@
+# Virtual environment
+.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# YOLO model downloads
+*.pt
+
+# VS Code settings
+.vscode/
+
+# Windows
+Thumbs.db
+Desktop.ini
