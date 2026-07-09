@@ -68,7 +68,19 @@ if not cap.isOpened():
 
 start_time = time.time()
 
+# -------------------------------
+# Performance Tracking Variables
+# -------------------------------
+
+previous_right_wrist = None
+previous_frame_time = time.time()
+
+swing_speed = 0
+fps = 0
+
 while True:
+
+    frame_start = time.time()
 
     success, frame = cap.read()
 
@@ -87,7 +99,9 @@ while True:
 
             points = keypoints[0]
 
-            # -------- ANGLE CALCULATIONS -------- #
+            # -------------------------------
+            # Joint Positions
+            # -------------------------------
 
             left_shoulder = tuple(points[5])
             left_elbow = tuple(points[7])
@@ -96,6 +110,10 @@ while True:
             right_shoulder = tuple(points[6])
             right_elbow = tuple(points[8])
             right_wrist = tuple(points[10])
+
+            # -------------------------------
+            # Elbow Angles
+            # -------------------------------
 
             left_angle = calculate_angle(
                 left_shoulder,
@@ -109,14 +127,38 @@ while True:
                 right_wrist
             )
 
-            # -------- CSV DATA -------- #
+            # -------------------------------
+            # Swing Speed
+            # -------------------------------
 
-            current_time = round(
-                time.time() - start_time,
-                2
-            )
+            current_time = time.time()
 
-            row = [current_time]
+            if previous_right_wrist is not None:
+
+                dx = right_wrist[0] - previous_right_wrist[0]
+                dy = right_wrist[1] - previous_right_wrist[1]
+
+                distance = math.sqrt(dx ** 2 + dy ** 2)
+
+                dt = current_time - previous_frame_time
+
+                if dt > 0:
+
+                    instant_speed = distance / dt
+
+                    # Smooth the speed
+                    swing_speed = swing_speed * 0.8 + instant_speed * 0.2
+
+            previous_right_wrist = right_wrist
+            previous_frame_time = current_time
+
+            # -------------------------------
+            # Save CSV
+            # -------------------------------
+
+            elapsed = round(time.time() - start_time, 2)
+
+            row = [elapsed]
 
             important_points = [
                 0,
@@ -136,11 +178,13 @@ while True:
                 writer = csv.writer(file)
                 writer.writerow(row)
 
-            # -------- DISPLAY ANGLES -------- #
+            # -------------------------------
+            # Display Metrics
+            # -------------------------------
 
             cv2.putText(
                 annotated_frame,
-                f"Left Elbow: {left_angle:.1f} deg",
+                f"Left Elbow : {left_angle:.1f} deg",
                 (20, 40),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.7,
@@ -157,6 +201,34 @@ while True:
                 (0, 255, 0),
                 2
             )
+
+            cv2.putText(
+                annotated_frame,
+                f"Swing Speed: {swing_speed:.1f} px/s",
+                (20, 100),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.7,
+                (0, 255, 255),
+                2
+            )
+
+    # -------------------------------
+    # FPS
+    # -------------------------------
+
+    frame_end = time.time()
+
+    fps = 1 / (frame_end - frame_start)
+
+    cv2.putText(
+        annotated_frame,
+        f"FPS: {fps:.1f}",
+        (20, 130),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.7,
+        (255, 255, 0),
+        2
+    )
 
     cv2.imshow(
         "CricketVision AI - Batting Data Collection",
